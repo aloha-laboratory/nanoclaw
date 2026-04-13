@@ -1,8 +1,12 @@
+import fs from 'fs';
+import path from 'path';
 import { Client, Events, GatewayIntentBits, Message, TextChannel } from 'discord.js';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { readEnvFile } from '../env.js';
 import { logger } from '../logger.js';
+import { resolveGroupFolderPath } from '../group-folder.js';
+import { processImage } from '../image.js';
 import { registerChannel, ChannelOpts } from './registry.js';
 import {
   Channel,
@@ -86,24 +90,61 @@ export class DiscordChannel implements Channel {
         }
       }
 
-      // Handle attachments — store placeholders so the agent knows something was sent
+      // Handle attachments — download images/PDFs, store placeholders for others
       if (message.attachments.size > 0) {
-        const attachmentDescriptions = [...message.attachments.values()].map((att) => {
+        const group = this.opts.registeredGroups()[chatJid];
+        const groupDir = group ? resolveGroupFolderPath(group.folder) : null;
+
+        const attachmentParts: string[] = [];
+        for (const att of message.attachments.values()) {
           const contentType = att.contentType || '';
-          if (contentType.startsWith('image/')) {
-            return `[Image: ${att.name || 'image'}]`;
+          if (contentType.startsWith('image/') && groupDir) {
+            try {
+              const res = await fetch(att.url);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const buf = Buffer.from(await res.arrayBuffer());
+              const processed = await processImage(buf, groupDir, att.name || '');
+              if (processed) {
+                attachmentParts.push(processed.content);
+                logger.info({ name: att.name, path: processed.relativePath }, 'Processed Discord image attachment');
+              } else {
+                attachmentParts.push(`[Image: ${att.name || 'image'}]`);
+              }
+            } catch (err) {
+              logger.warn({ name: att.name, err }, 'Discord image download failed');
+              attachmentParts.push(`[Image: ${att.name || 'image'}]`);
+            }
+          } else if (
+            (contentType === 'application/pdf' || att.name?.endsWith('.pdf')) &&
+            groupDir
+          ) {
+            try {
+              const res = await fetch(att.url);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const buf = Buffer.from(await res.arrayBuffer());
+              const attachDir = path.join(groupDir, 'attachments');
+              fs.mkdirSync(attachDir, { recursive: true });
+              const filename = att.name || `doc-${Date.now()}.pdf`;
+              fs.writeFileSync(path.join(attachDir, filename), buf);
+              attachmentParts.push(`[PDF: attachments/${filename}]`);
+              logger.info({ name: filename }, 'Downloaded Discord PDF attachment');
+            } catch (err) {
+              logger.warn({ name: att.name, err }, 'Discord PDF download failed');
+              attachmentParts.push(`[File: ${att.name || 'file'}]`);
+            }
           } else if (contentType.startsWith('video/')) {
-            return `[Video: ${att.name || 'video'}]`;
+            attachmentParts.push(`[Video: ${att.name || 'video'}]`);
           } else if (contentType.startsWith('audio/')) {
-            return `[Audio: ${att.name || 'audio'}]`;
+            attachmentParts.push(`[Audio: ${att.name || 'audio'}]`);
           } else {
-            return `[File: ${att.name || 'file'}]`;
+            attachmentParts.push(`[File: ${att.name || 'file'}]`);
           }
-        });
-        if (content) {
-          content = `${content}\n${attachmentDescriptions.join('\n')}`;
-        } else {
-          content = attachmentDescriptions.join('\n');
+        }
+
+        if (attachmentParts.length > 0) {
+          content = content
+            ? `${content}\n${attachmentParts.join('\n')}`
+            : attachmentParts.join('\n');
         }
       }
 
