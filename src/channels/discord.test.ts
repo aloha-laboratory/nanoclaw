@@ -12,6 +12,13 @@ vi.mock('../env.js', () => ({ readEnvFile: vi.fn(() => ({})) }));
 vi.mock('../config.js', () => ({
   ASSISTANT_NAME: 'Andy',
   TRIGGER_PATTERN: /^@Andy\b/i,
+  GROUPS_DIR: '/tmp/nanoclaw-test-groups',
+  DATA_DIR: '/tmp/nanoclaw-test-data',
+}));
+
+// Mock image processing (avoids sharp dependency in tests)
+vi.mock('../image.js', () => ({
+  processImage: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock logger
