@@ -1,6 +1,12 @@
 import fs from 'fs';
 import path from 'path';
-import { Client, Events, GatewayIntentBits, Message, TextChannel } from 'discord.js';
+import {
+  Client,
+  Events,
+  GatewayIntentBits,
+  Message,
+  TextChannel,
+} from 'discord.js';
 
 import { ASSISTANT_NAME, TRIGGER_PATTERN } from '../config.js';
 import { readEnvFile } from '../env.js';
@@ -103,15 +109,25 @@ export class DiscordChannel implements Channel {
               const res = await fetch(att.url);
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
               const buf = Buffer.from(await res.arrayBuffer());
-              const processed = await processImage(buf, groupDir, att.name || '');
+              const processed = await processImage(
+                buf,
+                groupDir,
+                att.name || '',
+              );
               if (processed) {
                 attachmentParts.push(processed.content);
-                logger.info({ name: att.name, path: processed.relativePath }, 'Processed Discord image attachment');
+                logger.info(
+                  { name: att.name, path: processed.relativePath },
+                  'Processed Discord image attachment',
+                );
               } else {
                 attachmentParts.push(`[Image: ${att.name || 'image'}]`);
               }
             } catch (err) {
-              logger.warn({ name: att.name, err }, 'Discord image download failed');
+              logger.warn(
+                { name: att.name, err },
+                'Discord image download failed',
+              );
               attachmentParts.push(`[Image: ${att.name || 'image'}]`);
             }
           } else if (
@@ -127,9 +143,15 @@ export class DiscordChannel implements Channel {
               const filename = att.name || `doc-${Date.now()}.pdf`;
               fs.writeFileSync(path.join(attachDir, filename), buf);
               attachmentParts.push(`[PDF: attachments/${filename}]`);
-              logger.info({ name: filename }, 'Downloaded Discord PDF attachment');
+              logger.info(
+                { name: filename },
+                'Downloaded Discord PDF attachment',
+              );
             } catch (err) {
-              logger.warn({ name: att.name, err }, 'Discord PDF download failed');
+              logger.warn(
+                { name: att.name, err },
+                'Discord PDF download failed',
+              );
               attachmentParts.push(`[File: ${att.name || 'file'}]`);
             }
           } else if (contentType.startsWith('video/')) {
@@ -166,7 +188,13 @@ export class DiscordChannel implements Channel {
 
       // Store chat metadata for discovery
       const isGroup = message.guild !== null;
-      this.opts.onChatMetadata(chatJid, timestamp, chatName, 'discord', isGroup);
+      this.opts.onChatMetadata(
+        chatJid,
+        timestamp,
+        chatName,
+        'discord',
+        isGroup,
+      );
 
       // Only deliver full message for registered groups
       const group = this.opts.registeredGroups()[chatJid];
