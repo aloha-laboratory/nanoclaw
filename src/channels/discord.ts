@@ -104,7 +104,10 @@ export class DiscordChannel implements Channel {
         const attachmentParts: string[] = [];
         for (const att of message.attachments.values()) {
           const contentType = att.contentType || '';
-          if (contentType.startsWith('image/') && groupDir) {
+          const isImage =
+            contentType.startsWith('image/') ||
+            /\.(jpe?g|png|gif|webp|bmp|tiff?)$/i.test(att.name || '');
+          if (isImage && groupDir) {
             try {
               const res = await fetch(att.url);
               if (!res.ok) throw new Error(`HTTP ${res.status}`);
