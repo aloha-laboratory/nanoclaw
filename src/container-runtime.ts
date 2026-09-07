@@ -49,6 +49,20 @@ export function hostGatewayArgs(): string[] {
   return [];
 }
 
+/**
+ * Security args for Chromium to work on ARM64 (Apple Silicon).
+ * Chromium exits with SIGTRAP (133) under the default seccomp profile on ARM64
+ * Docker Desktop VMs. seccomp=unconfined lifts that restriction.
+ * Overridable via NANOCLAW_BROWSER_SECCOMP=default to restore the default profile.
+ */
+export function browserSecurityArgs(): string[] {
+  if (process.env.NANOCLAW_BROWSER_SECCOMP === 'default') return [];
+  if (os.platform() === 'darwin' || os.arch() === 'arm64') {
+    return ['--security-opt', 'seccomp=unconfined'];
+  }
+  return [];
+}
+
 /** Returns CLI args for a readonly bind mount. */
 export function readonlyMountArgs(
   hostPath: string,

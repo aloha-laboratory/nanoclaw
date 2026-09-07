@@ -24,6 +24,7 @@ import {
   hostGatewayArgs,
   readonlyMountArgs,
   stopContainer,
+  browserSecurityArgs,
 } from './container-runtime.js';
 import { detectAuthMode } from './credential-proxy.js';
 import { validateAdditionalMounts } from './mount-security.js';
@@ -251,6 +252,9 @@ function buildContainerArgs(
 
   // Runtime-specific args for host gateway resolution
   args.push(...hostGatewayArgs());
+
+  // ARM64: lift seccomp restrictions so Chromium doesn't exit with SIGTRAP
+  args.push(...browserSecurityArgs());
 
   // Run as host user so bind-mounted files are accessible.
   // Skip when running as root (uid 0), as the container's node user (uid 1000),
