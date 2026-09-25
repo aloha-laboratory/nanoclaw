@@ -508,6 +508,7 @@ async function runQuery(
         'NotebookEdit',
         'mcp__nanoclaw__*',
       ],
+      model: process.env.NANOCLAW_MODEL || 'claude-opus-5-5',
       env: sdkEnv,
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
